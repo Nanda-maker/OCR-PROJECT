@@ -3,9 +3,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:developer' as developer;
 import 'dart:convert';
 import 'package:ocr_project/TransactionDetail.dart';
+import 'utils/constants.dart';
+import 'login_screens/login_screen.dart';
+
 
 void main() {
   runApp(const MyApp());
@@ -21,8 +23,14 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.green,
+        scaffoldBackgroundColor: kBackgroundColor,
+        textTheme: Theme.of(context).textTheme.apply(
+          bodyColor: kPrimaryColor,
+          fontFamily: 'Montserrat',
+        ),
       ),
-      home: const MyHomePage(),
+      //home: const MyHomePage(),
+      home: const LoginScreen(),
     );
   }
 }
@@ -175,21 +183,43 @@ class _MyHomePageState extends State<MyHomePage> {
     RecognisedText recognisedText = await textDetector.processImage(inputImage);
     await textDetector.close();
     scannedText = "";
-    String bank = recognisedText.blocks[0].lines[0].text;
 
+    var startIndex = 0;
+    var bankDetected = false;
+     List<TextBlock> filteredBlocks = [];
+    for (TextBlock block in recognisedText.blocks) {
+
+
+      for (TextLine line in block.lines) {
+
+        if(line.text == 'MPay' || line.text=='MBOB'){
+          filteredBlocks =  recognisedText.blocks.sublist(startIndex);
+          bankDetected = true;
+          break;
+        }
+      }
+      if(bankDetected){
+        break;
+      }
+      startIndex++;
+    }
+    print(filteredBlocks);
+    String bank = filteredBlocks[0].lines[0].text;
 
     switch (bank){
       case "MPay" :
         // Map<String, dynamic> userMap = transactionDetail.toMap();
         // var user = jsonEncode(userMap);
         // print(user.toString());
-        { MapDataValueForMpay(recognisedText);}
+        { MapDataValueForMpay(filteredBlocks);}
 
         break;
       case "MBOB":
-        {MapDataValueForBob(recognisedText);}
+        {MapDataValueForBob(filteredBlocks);}
         break;
-      default: { print("Invalid"); }
+      default: {
+
+        print("Invalid"); }
       break;
     }
 
@@ -197,10 +227,10 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {});
   }
 //bnb to bnb or bob???
-  void MapDataValueForMpay(RecognisedText recognisedText) async{
+  void MapDataValueForMpay(List<TextBlock> filteredBlocks) async{
     var index =0;
     var ocrValues= {};
-    for (TextBlock block in recognisedText.blocks) {
+    for (TextBlock block in filteredBlocks) {
 
       for (TextLine line in block.lines) {
         index++;
@@ -237,10 +267,11 @@ class _MyHomePageState extends State<MyHomePage> {
     print(ocrValues);
   }
 //Bob to Bob
-  void MapDataValueForBob(RecognisedText recognisedText) async{
+  void MapDataValueForBob(List<TextBlock> filteredBlocks) async{
     var index =0;
     var ocrValuebob= {};
-    for (TextBlock block in recognisedText.blocks) {
+    var jumpValues = false;
+    for (TextBlock block in filteredBlocks) {
 
       for (TextLine line in block.lines) {
         index++;
@@ -255,20 +286,41 @@ class _MyHomePageState extends State<MyHomePage> {
           ocrValuebob['Jrnl. No'] = line.text;
         }
 
-        if(index == 8) {
+        if(index == 7 && line.text[0] == 'R'){
+          jumpValues = true;
+        }
+        if(jumpValues){
+          if(index == 8) {
             ocrValuebob['RRNO.'] = line.text;
-        }
-        if(index == 10){
-          ocrValuebob['From A/C'] = line.text;
-        }
-        if(index == 12){
-          ocrValuebob['To A/C'] = line.text.substring(0,14);
-        }
-        if(index == 15){
-          ocrValuebob['Purpose/Bill QR'] = line.text;
-        }
-        if(index == 17){
-          ocrValuebob['Date'] = line.text;
+          }
+          if(index == 10){
+            ocrValuebob['From A/C'] = line.text;
+          }
+          if(index == 12){
+            ocrValuebob['To A/C'] = line.text.substring(0,14);
+          }
+          if(index == 15){
+            ocrValuebob['Purpose/Bill QR'] = line.text;
+          }
+          if(index == 17){
+            ocrValuebob['Date'] = line.text;
+          }
+
+        }else{
+
+          if(index == 8){
+            ocrValuebob['From A/C'] = line.text;
+          }
+          if(index == 10){
+            ocrValuebob['To A/C'] = line.text.substring(0,14);
+          }
+          if(index == 12){
+            ocrValuebob['Purpose/Bill QR'] = line.text;
+          }
+          if(index == 14){
+            ocrValuebob['Date'] = line.text;
+          }
+
         }
 
         scannedText = scannedText + line.text + "\n";
