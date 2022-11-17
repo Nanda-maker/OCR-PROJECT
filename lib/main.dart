@@ -1,10 +1,16 @@
 import 'dart:io';
 
+import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'package:ocr_project/TransactionDetail.dart';
+import 'package:ocr_project/TransactionDetails.dart';
+import 'package:ocr_project/model/transaction.dart';
+import 'package:ocr_project/pages/sortable_page.dart';
+import 'package:ocr_project/widget/bottom_bar.dart';
+import 'data/transactions.dart';
 import 'utils/constants.dart';
 import 'login_screens/login_screen.dart';
 
@@ -49,14 +55,21 @@ class _MyHomePageState extends State<MyHomePage> {
 
   String scannedText = "";
   //TransactionDetail transactionDetail = new TransactionDetail();
+  bool shadowColor = false;
+  double? scrolledUnderElevation;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
-        title: const Text("Text Recognition"),
+        title:  Text('Zap'),
+        scrolledUnderElevation: scrolledUnderElevation,
+        shadowColor:
+        shadowColor ? Theme.of(context).colorScheme.shadow : null,
+        backgroundColor: Color(0xDB4BE8CC),
+        automaticallyImplyLeading: false,
       ),
+      bottomNavigationBar: BottomNavBar(1),
       body: Center(
           child: SingleChildScrollView(
             child: Container(
@@ -246,11 +259,20 @@ class _MyHomePageState extends State<MyHomePage> {
         if(index == 6){
           ocrValues['from A/C'] = line.text;
         }
+        if(index == 7){
+          ocrValues['from A/C'] =  ocrValues['from A/C'] +", "+ line.text;
+        }
         if(index == 9){
           ocrValues['to A/C'] = line.text;
         }
+        if(index == 10){
+          ocrValues['to A/C'] = ocrValues['to A/C']+", "+line.text;
+        }
         if(index == 11){
           ocrValues['date'] = line.text.substring(6);
+        }
+        if(index == 12){
+          ocrValues['date'] = ocrValues['date']+" "+line.text;
         }
         if(index == 13){
           ocrValues['time'] = line.text.substring(6);
@@ -260,17 +282,20 @@ class _MyHomePageState extends State<MyHomePage> {
         }
         scannedText = scannedText + line.text + "\n";
 
-        //print(line.text);
+        print(line.text);
 
       }
     }
     print(ocrValues);
+    Transaction transaction = new Transaction(id: allTransactions.length, bank: ocrValues["bank"], refrenceNumber: ocrValues["reference No."],rrno: "", amount: double.parse(ocrValues["amount"].substring(3)), fromAC: ocrValues["from A/C"], toAC: ocrValues["to A/C"],date: ocrValues["date"],time: ocrValues["time"], remark: ocrValues["remark"]);
+    allTransactions.insert(0,transaction);
+    Navigator.push(context, MaterialPageRoute(builder: (context) => TransactionDetails(transaction)));
   }
 //Bob to Bob
   void MapDataValueForBob(List<TextBlock> filteredBlocks) async{
     var index =0;
     var ocrValuebob= {};
-    var jumpValues = false;
+    //var jumpValues = false;
     for (TextBlock block in filteredBlocks) {
 
       for (TextLine line in block.lines) {
@@ -287,10 +312,8 @@ class _MyHomePageState extends State<MyHomePage> {
         }
 
         if(index == 7 && line.text[0] == 'R'){
-          jumpValues = true;
-        }
-        if(jumpValues){
-          if(index == 8) {
+          //jumpValues = true;
+          if(index == 8 || index == 9) {
             ocrValuebob['RRNO.'] = line.text;
           }
           if(index == 10){
@@ -305,14 +328,18 @@ class _MyHomePageState extends State<MyHomePage> {
           if(index == 17){
             ocrValuebob['Date'] = line.text;
           }
-
-        }else{
+        }
+        // if(jumpValues){
+        //
+        //
+        // }
+        else{
 
           if(index == 8){
             ocrValuebob['From A/C'] = line.text;
           }
           if(index == 10){
-            ocrValuebob['To A/C'] = line.text.substring(0,14);
+            ocrValuebob['To A/C'] = line.text;
           }
           if(index == 12){
             ocrValuebob['Purpose/Bill QR'] = line.text;
@@ -320,7 +347,6 @@ class _MyHomePageState extends State<MyHomePage> {
           if(index == 14){
             ocrValuebob['Date'] = line.text;
           }
-
         }
 
         scannedText = scannedText + line.text + "\n";
@@ -330,6 +356,9 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
     print(ocrValuebob);
+    Transaction transaction = new Transaction(id: allTransactions.length, bank: ocrValuebob["bank"], refrenceNumber: ocrValuebob["Jrnl. No"],rrno: ocrValuebob["RRNO."], amount: double.parse(ocrValuebob["amount"].substring(3)), fromAC: ocrValuebob["From A/C"], toAC: ocrValuebob["To A/C"],date: ocrValuebob["Date"], remark: ocrValuebob["Purpose/Bill QR"],time:"");
+    allTransactions.insert(0,transaction);
+    Navigator.push(context, MaterialPageRoute(builder: (context) => TransactionDetails(transaction)));
   }
 
   @override

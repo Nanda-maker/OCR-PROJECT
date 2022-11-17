@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:ionicons/ionicons.dart';
 import 'package:ocr_project/login_screens/animations/change_screen_animation.dart';
+import 'package:ocr_project/main.dart';
+import 'package:ocr_project/pages/sortable_page.dart';
 
 import '../../utils/constants.dart';
 import '../../utils/helper_functions.dart';
@@ -17,6 +19,7 @@ class LoginContent extends StatefulWidget {
 
   @override
   State<LoginContent> createState() => _LoginContentState();
+
 }
 
 class _LoginContentState extends State<LoginContent>
@@ -56,7 +59,12 @@ class _LoginContentState extends State<LoginContent>
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 135, vertical: 16),
       child: ElevatedButton(
-        onPressed: () {},
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) =>  SortablePage()),
+          );
+        },
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: const StadiumBorder(),
@@ -150,7 +158,7 @@ class _LoginContentState extends State<LoginContent>
     ];
 
     loginContent = [
-      inputField('Email', Ionicons.mail_outline),
+      inputField('Phone Number', Ionicons.phone_portrait_outline),
       inputField('Password', Ionicons.lock_closed_outline),
       loginButton('Log In'),
       forgotPassword(),

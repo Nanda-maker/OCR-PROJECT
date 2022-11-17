@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.ocr_project">
    <application
-        android:label="ocr_project"
+        android:label="ZAP"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
