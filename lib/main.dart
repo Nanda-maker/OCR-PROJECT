@@ -1,5 +1,5 @@
+import 'dart:async';
 import 'dart:io';
-
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
@@ -9,11 +9,11 @@ import 'package:ocr_project/TransactionDetail.dart';
 import 'package:ocr_project/TransactionDetails.dart';
 import 'package:ocr_project/model/transaction.dart';
 import 'package:ocr_project/pages/sortable_page.dart';
+import 'package:ocr_project/utils/common.dart';
 import 'package:ocr_project/widget/bottom_bar.dart';
 import 'data/transactions.dart';
 import 'utils/constants.dart';
 import 'login_screens/login_screen.dart';
-
 
 void main() {
   runApp(const MyApp());
@@ -52,7 +52,9 @@ class _MyHomePageState extends State<MyHomePage> {
   bool textScanning = false;
 
   XFile? imageFile;
-
+  //late Size _imageSize;
+ // List<TextElement> _elements = [];
+  //late File _file;
   String scannedText = "";
   //TransactionDetail transactionDetail = new TransactionDetail();
   bool shadowColor = false;
@@ -74,6 +76,16 @@ class _MyHomePageState extends State<MyHomePage> {
           child: SingleChildScrollView(
             child: Container(
                 margin: const EdgeInsets.all(20),
+                // child: CustomPaint(
+                //   foregroundPainter:
+                //   TextDetectorPainter(_imageSize, _elements),
+                //   child: AspectRatio(
+                //     aspectRatio: _imageSize.aspectRatio,
+                //     child: Image.file(
+                //       File(path),
+                //     ),
+                //   ),
+                // ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -172,6 +184,25 @@ class _MyHomePageState extends State<MyHomePage> {
           )),
     );
   }
+  // Future<void> _getImageSize(XFile imageFile) async {
+  //   final Completer<Size> completer = Completer<Size>();
+  //
+  //   final Image image = Image.file(File(imageFile!.path));
+  //   image.image.resolve(const ImageConfiguration()).addListener(
+  //     ImageStreamListener((ImageInfo info, bool _) {
+  //       completer.complete(Size(
+  //         info.image.width.toDouble(),
+  //         info.image.height.toDouble(),
+  //       ));
+  //     }),
+  //   );
+  //
+  //   final Size imageSize = await completer.future;
+  //   setState(() {
+  //     _imageSize = imageSize;
+  //   });
+  // }
+
 
   void getImage(ImageSource source) async {
     try {
@@ -196,17 +227,15 @@ class _MyHomePageState extends State<MyHomePage> {
     RecognisedText recognisedText = await textDetector.processImage(inputImage);
     await textDetector.close();
     scannedText = "";
-
     var startIndex = 0;
+
+    List<String> recognisedTexts = [];
     var bankDetected = false;
-     List<TextBlock> filteredBlocks = [];
+    List<TextBlock> filteredBlocks = [];
     for (TextBlock block in recognisedText.blocks) {
-
-
       for (TextLine line in block.lines) {
-
-        if(line.text == 'MPay' || line.text=='MBOB'){
-          filteredBlocks =  recognisedText.blocks.sublist(startIndex);
+        if(line.text == 'MPay' || line.text=='MBOB') {
+          filteredBlocks = recognisedText.blocks.sublist(startIndex);
           bankDetected = true;
           break;
         }
@@ -218,17 +247,23 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     print(filteredBlocks);
     String bank = filteredBlocks[0].lines[0].text;
+    for(TextBlock block in filteredBlocks){
+      for(TextLine line in block.lines){
+          recognisedTexts.add(line.text);
+
+      }
+    }
 
     switch (bank){
       case "MPay" :
         // Map<String, dynamic> userMap = transactionDetail.toMap();
         // var user = jsonEncode(userMap);
         // print(user.toString());
-        { MapDataValueForMpay(filteredBlocks);}
+        { MapDataValueForMpay(recognisedTexts);}
 
         break;
       case "MBOB":
-        {MapDataValueForBob(filteredBlocks);}
+        {MapDataValueForBob(recognisedTexts);}
         break;
       default: {
 
@@ -240,129 +275,138 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {});
   }
 //bnb to bnb or bob???
-  void MapDataValueForMpay(List<TextBlock> filteredBlocks) async{
-    var index =0;
-    var ocrValues= {};
-    for (TextBlock block in filteredBlocks) {
+  void MapDataValueForMpay(List<String> recognisedTexts) async{
+    var ocrValueMpay= {};
+    List<String> listLabels = ["Reference","RRN","From","To","Date","Time","Remarks"];
 
-      for (TextLine line in block.lines) {
-        index++;
-        if(index == 1){
-          ocrValues['bank'] = line.text;
-        }
-        if(index == 3){
-          ocrValues['amount'] = line.text;
-        }
-        if(index == 4){
-          ocrValues['reference No.'] = line.text.substring(14);
-        }
-        if(index == 6){
-          ocrValues['from A/C'] = line.text;
-        }
-        if(index == 7){
-          ocrValues['from A/C'] =  ocrValues['from A/C'] +", "+ line.text;
-        }
-        if(index == 9){
-          ocrValues['to A/C'] = line.text;
-        }
-        if(index == 10){
-          ocrValues['to A/C'] = ocrValues['to A/C']+", "+line.text;
-        }
-        if(index == 11){
-          ocrValues['date'] = line.text.substring(6);
-        }
-        if(index == 12){
-          ocrValues['date'] = ocrValues['date']+" "+line.text;
-        }
-        if(index == 13){
-          ocrValues['time'] = line.text.substring(6);
-        }
-        if(index == 14){
-          ocrValues['remark'] = line.text.substring(10);
-        }
-        scannedText = scannedText + line.text + "\n";
+    for(String label in listLabels ){
+      test(String value) => value.replaceAll(" ", "").toLowerCase().contains(label.replaceAll(" ", '').toLowerCase());
+      if(recognisedTexts.any(test)){
+        final index = recognisedTexts.indexWhere((text) =>  text.replaceAll(" ", "").toLowerCase().contains(label.replaceAll(" ", '').toLowerCase())); // 1
 
-        print(line.text);
-
+        ocrValueMpay[label] = recognisedTexts.elementAt(index+1);
       }
     }
-    print(ocrValues);
-    Transaction transaction = new Transaction(id: allTransactions.length, bank: ocrValues["bank"], refrenceNumber: ocrValues["reference No."],rrno: "", amount: double.parse(ocrValues["amount"].substring(3)), fromAC: ocrValues["from A/C"], toAC: ocrValues["to A/C"],date: ocrValues["date"],time: ocrValues["time"], remark: ocrValues["remark"]);
-    allTransactions.insert(0,transaction);
-    Navigator.push(context, MaterialPageRoute(builder: (context) => TransactionDetails(transaction)));
+
+    print(recognisedTexts);
+    print(ocrValueMpay);
   }
+
+
+  //   var index =0;
+  //   var ocrValues= {};
+  //   for (TextBlock block in filteredBlocks) {
+  //
+  //     for (TextLine line in block.lines) {
+  //       index++;
+  //       if(index == 1){
+  //         ocrValues['bank'] = line.text;
+  //       }
+  //       if(index == 3){
+  //         ocrValues['amount'] = line.text;
+  //       }
+  //       if(index == 4){
+  //         ocrValues['reference No.'] = line.text.substring(14);
+  //       }
+  //       if(index == 6){
+  //         ocrValues['from A/C'] = line.text;
+  //       }
+  //       if(index == 7){
+  //         ocrValues['from A/C'] =  ocrValues['from A/C'] +", "+ line.text;
+  //       }
+  //       if(index == 9){
+  //         ocrValues['to A/C'] = line.text;
+  //       }
+  //       if(index == 10){
+  //         ocrValues['to A/C'] = ocrValues['to A/C']+", "+line.text;
+  //       }
+  //       if(index == 11){
+  //         ocrValues['date'] = line.text.substring(6);
+  //       }
+  //       if(index == 12){
+  //         ocrValues['date'] = ocrValues['date']+" "+line.text;
+  //       }
+  //       if(index == 13){
+  //         ocrValues['time'] = line.text.substring(6);
+  //       }
+  //       if(index == 14){
+  //         ocrValues['remark'] = line.text.substring(10);
+  //       }
+  //       scannedText = scannedText + line.text + "\n";
+  //       // for (TextElement element in line.elements) {
+  //       //   _elements.add(element);
+  //       // }
+  //
+  //       print(line.text.replaceAll(" ", ''));
+  //
+  //     }
+  //   }
+  //   print(ocrValues);
+  //   Transaction transaction = new Transaction(id: allTransactions.length, bank: ocrValues["bank"], refrenceNumber: ocrValues["reference No."],rrno: "", amount: double.parse(ocrValues["amount"].substring(3)), fromAC: ocrValues["from A/C"], toAC: ocrValues["to A/C"],date: ocrValues["date"],time: ocrValues["time"], remark: ocrValues["remark"]);
+  //   allTransactions.insert(0,transaction);
+  //   Navigator.push(context, MaterialPageRoute(builder: (context) => TransactionDetails(transaction)));
+  // }
 //Bob to Bob
-  void MapDataValueForBob(List<TextBlock> filteredBlocks) async{
-    var index =0;
+  void MapDataValueForBob(List<String> recognisedTexts) async{
     var ocrValuebob= {};
-    //var jumpValues = false;
-    for (TextBlock block in filteredBlocks) {
+    List<String> listLabels = ["Jrnl.No","RRNO","From","To","Purpose","Date"];
 
-      for (TextLine line in block.lines) {
-        index++;
-        if(index == 1){
-          ocrValuebob['bank'] = line.text;
-        }
-        if(index == 4){
-          ocrValuebob['amount'] = line.text;
-        }
+    for(String label in listLabels ){
+      test(String value) => value.replaceAll(" ", "").toLowerCase().contains(label.replaceAll(" ", '').toLowerCase());
+      if(recognisedTexts.any(test)){
+        final index = recognisedTexts.indexWhere((text) =>  text.replaceAll(" ", "").toLowerCase().contains(label.replaceAll(" ", '').toLowerCase())); // 1
 
-        if(index == 6) {
-          ocrValuebob['Jrnl. No'] = line.text;
-        }
-
-        if(index == 7 && line.text[0] == 'R'){
-          //jumpValues = true;
-          if(index == 8 || index == 9) {
-            ocrValuebob['RRNO.'] = line.text;
-          }
-          if(index == 10){
-            ocrValuebob['From A/C'] = line.text;
-          }
-          if(index == 12){
-            ocrValuebob['To A/C'] = line.text.substring(0,14);
-          }
-          if(index == 15){
-            ocrValuebob['Purpose/Bill QR'] = line.text;
-          }
-          if(index == 17){
-            ocrValuebob['Date'] = line.text;
-          }
-        }
-        // if(jumpValues){
-        //
-        //
-        // }
-        else{
-
-          if(index == 8){
-            ocrValuebob['From A/C'] = line.text;
-          }
-          if(index == 10){
-            ocrValuebob['To A/C'] = line.text;
-          }
-          if(index == 12){
-            ocrValuebob['Purpose/Bill QR'] = line.text;
-          }
-          if(index == 14){
-            ocrValuebob['Date'] = line.text;
-          }
-        }
-
-        scannedText = scannedText + line.text + "\n";
-
-        //print(line.text);
-
+        ocrValuebob[label] = recognisedTexts.elementAt(index+1);
       }
     }
+  
+    print(recognisedTexts);
     print(ocrValuebob);
-    Transaction transaction = new Transaction(id: allTransactions.length, bank: ocrValuebob["bank"], refrenceNumber: ocrValuebob["Jrnl. No"],rrno: ocrValuebob["RRNO."], amount: double.parse(ocrValuebob["amount"].substring(3)), fromAC: ocrValuebob["From A/C"], toAC: ocrValuebob["To A/C"],date: ocrValuebob["Date"], remark: ocrValuebob["Purpose/Bill QR"],time:"");
-    allTransactions.insert(0,transaction);
-    Navigator.push(context, MaterialPageRoute(builder: (context) => TransactionDetails(transaction)));
+   // Transaction transaction = new Transaction(id: allTransactions.length, bank: ocrValuebob["bank"], refrenceNumber: ocrValuebob["Jrnl. No"],rrno: ocrValuebob["RRNO."], amount: double.parse(ocrValuebob["amount"].substring(3)), fromAC: ocrValuebob["From A/C"], toAC: ocrValuebob["To A/C"],date: ocrValuebob["Date"], remark: ocrValuebob["Purpose/Bill QR"],time:"");
+   // allTransactions.insert(0,transaction);
+    //Navigator.push(context, MaterialPageRoute(builder: (context) => TransactionDetails(transaction)));
   }
+
 
   @override
   void initState() {
     super.initState();
   }
 }
+
+
+// class TextDetectorPainter extends CustomPainter {
+//   TextDetectorPainter(this.absoluteImageSize, this.elements);
+//
+//   final Size absoluteImageSize;
+//   final List<TextElement> elements;
+//
+//   @override
+//   void paint(Canvas canvas, Size size) {
+//     final double scaleX = size.width / absoluteImageSize.width;
+//     final double scaleY = size.height / absoluteImageSize.height;
+//
+//     Rect scaleRect(TextContainer container) {
+//       return Rect.fromLTRB(
+//         container.boundingBox.left * scaleX,
+//         container.boundingBox.top * scaleY,
+//         container.boundingBox.right * scaleX,
+//         container.boundingBox.bottom * scaleY,
+//       );
+//     }
+//
+//     final Paint paint = Paint()
+//       ..style = PaintingStyle.stroke
+//       ..color = Colors.red
+//       ..strokeWidth = 2.0;
+//
+//     for (TextElement element in elements) {
+//       canvas.drawRect(scaleRect(element), paint);
+//     }
+//   }
+//
+//   @override
+//   bool shouldRepaint(TextDetectorPainter oldDelegate) {
+//     return true;
+//   }
+// }
